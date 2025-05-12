@@ -227,7 +227,7 @@ function __dot_separator {
     local dots=""
     if ((gap > 0)); then
         dots=$(printf "%${gap}s" | tr ' ' '.')
-        dots=" \[\e[38;5;238m\]$dots$(__color)"
+        dots=" \[\e[38;2;146;146;146m\]\[\e[2m\]$dots\[\e[22m\]$(__color)"
     fi
     echo -n "$dots"
 
