@@ -198,7 +198,7 @@ function __powerline_left_segment {
 }
 
 function __powerline_last_status_prompt {
-    local symbol=${PROMPT_CHAR}
+    local symbol="${PROMPT_CHAR} "
     local last_status=$1
     local color="- G B"
     if [[ "$last_status" -ne 0 ]]; then
