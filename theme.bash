@@ -104,83 +104,77 @@ function __powerline_cwd_prompt {
 }
 
 function __powerline_scm_prompt {
-    git_local_branch=""
-    git_branch=""
-    git_dirty=""
-    git_dirty_count=""
-    git_ahead_count=""
-    git_ahead=""
-    git_behind_count=""
-    git_behind=""
+    # Fast exit if not in Git repo
+    [[ $(git rev-parse --is-inside-work-tree 2>/dev/null) != "true" ]] && return
 
-    find_git_branch() {
-        # Based on: http://stackoverflow.com/a/13003854/170413
-        git_local_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    local git_dir branch tracking_branch
+    local -i ahead=0 behind=0 stashed=0
+    local -A counts=([staged]=0 [unstaged]=0 [untracked]=0 [conflicts]=0 [deleted]=0 [renamed]=0)
+    local status_lines
 
-        if [[ -n "$git_local_branch" ]]; then
-            if [[ "$git_local_branch" == "HEAD" ]]; then
-                # Branc detached Could show the hash here
-                git_branch=$(git rev-parse --short HEAD 2>/dev/null)
-            else
-                git_branch=$git_local_branch
-            fi
-        else
-            git_branch=""
-            return 1
+    IFS=$'\n' read -rd '' status_lines <<<"$(git status --porcelain -b --ignored 2>/dev/null)"
+
+    # Parse status output in single pass
+    while IFS= read -r line; do
+        # Branch and tracking info
+        if [[ ${line:0:2} == "##" ]]; then
+            branch="${line#* }"
+            branch="${branch%%...*}"
+            tracking_branch="${line#*...}"
+            tracking_branch="${tracking_branch%% *}"
+            # try to match ahead N
+            [[ $line =~ ahead[[:space:]]([0-9]+) ]] && ahead=${BASH_REMATCH[1]}
+            # try to match behind N
+            [[ $line =~ behind[[:space:]]([0-9]+) ]] && behind=${BASH_REMATCH[1]}
+            continue
         fi
-    }
 
-    find_git_dirty() {
-        # All dirty files (modified and untracked)
-        local status_count=$(git status --porcelain 2>/dev/null | wc -l)
+        # File status parsing with improved pattern matching
+        prefix=${line:0:2}
+        case "$prefix" in
+        "##") continue ;;
+        "??") ((counts[untracked]++)) ;;                  # Untracked files
+        "!!") ;;                                          # Ignored files (skip)
+        U? | ?U | "AA" | "DD") ((counts[conflicts]++)) ;; # Merge conflicts
+        R?) ((counts[renamed]++)) ;;                      # Renamed files
+        ?D | D?) ((counts[deleted]++)) ;;                 # Deleted files
+        *)
+            # Staged changes (except deletions/renames)
+            [[ "${line:0:1}" =~ [ACDMR] ]] && ((counts[staged]++))
+            # Unstaged changes
+            [[ "${line:1:1}" =~ [ACDMR] ]] && ((counts[unstaged]++))
+            ;;
+        esac
+    done <<<"$status_lines"
+    # Stash count from refs (faster than git stash list)
+    [[ -f "$(git rev-parse --git-dir)/refs/stash" ]] &&
+        stashed=$(($(wc -l <"$(git rev-parse --git-dir)/refs/stash" 2>/dev/null)))
 
-        if [[ "$status_count" != 0 ]]; then
-            git_dirty=true
-            git_dirty_count="$status_count"
-        else
-            git_dirty=''
-            git_dirty_count=''
-        fi
-    }
+    # Special state detection
+    local state_symbols=()
+    git_dir="$(git rev-parse --git-dir)"
+    [[ -d "$git_dir/rebase-merge" || -d "$git_dir/rebase-apply" ]] && state_symbols+=(↦REBASING)
+    [[ -f "$git_dir/CHERRY_PICK_HEAD" ]] && state_symbols+=(🍒CHERRY-PICKING)
+    [[ -f "$git_dir/MERGE_HEAD" ]] && state_symbols+=( MERGING)
+    [[ -f "$git_dir/BISECT_LOG" ]] && state_symbols+=(󰃻 BISECTING)
+    [[ -f "$git_dir/REVERT_HEAD" ]] && state_symbols+=(↻REVERTING)
 
-    find_git_ahead_behind() {
-        if [[ -n "$git_local_branch" ]] && [[ "$git_branch" != "HEAD" ]]; then
-            local upstream_branch=$(git rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
-            # If we get back what we put in, then that means the upstream branch was not found.  (This was observed on git 1.7.10.4 on Ubuntu)
-            [[ "$upstream_branch" = "@{upstream}" ]] && upstream_branch=''
-            # If the branch is not tracking a specific remote branch, then assume we are tracking origin/[this_branch_name]
-            [[ -z "$upstream_branch" ]] && upstream_branch="origin/$git_local_branch"
-            if [[ -n "$upstream_branch" ]]; then
-                git_ahead_count=$(git rev-list --left-right ${git_local_branch}...${upstream_branch} 2>/dev/null | grep -c '^<')
-                git_behind_count=$(git rev-list --left-right ${git_local_branch}...${upstream_branch} 2>/dev/null | grep -c '^>')
-                if [[ "$git_ahead_count" = 0 ]]; then
-                    git_ahead_count=''
-                else
-                    git_ahead=true
-                fi
-                if [[ "$git_behind_count" = 0 ]]; then
-                    git_behind_count=''
-                else
-                    git_behind=true
-                fi
-            fi
-        fi
-    }
+    # Build status string
+    local status=""
+    [[ ${counts[unstaged]} -gt 0 ]] && status+=" $(__color - Y)!${counts[unstaged]}"
+    [[ ${counts[staged]} -gt 0 ]] && status+=" $(__color - Y)+${counts[staged]}"
+    [[ ${counts[untracked]} -gt 0 ]] && status+=" $(__color - B)?${counts[untracked]}"
+    [[ ${counts[deleted]} -gt 0 ]] && status+=" $(__color - R)-${counts[deleted]}"
+    [[ ${counts[renamed]} -gt 0 ]] && status+=" $(__color - B)→${counts[renamed]}"
+    [[ ${counts[conflicts]} -gt 0 ]] && status+=" $(__color - M)✗${counts[conflicts]}"
+    [[ $ahead -gt 0 ]] && status+=" $(__color - G)⇡$ahead"
+    [[ $behind -gt 0 ]] && status+=" $(__color - G)⇣$behind"
+    [[ $stashed -gt 0 ]] && status+=" $(__color - G)⚑$stashed"
 
-    local color
-    local scm_info
+    # Add state symbols to branch name
+    [[ ${#state_symbols[@]} -gt 0 ]] && branch="${branch} $(__color - Y)${state_symbols[*]}"
 
-    find_git_branch && find_git_dirty && find_git_ahead_behind
-
-    #not in Git repo
-    [[ -z "$git_branch" ]] && return
-
-    scm_info="${SCM_GIT_CHAR}${git_branch}"
-    [[ -n "$git_dirty" ]] && color=${SCM_PROMPT_DIRTY_COLOR} || color=${SCM_PROMPT_CLEAN_COLOR}
-    [[ -n "$git_behind" ]] && scm_info+=" ${SCM_PROMPT_BEHIND}${git_behind_count}"
-    [[ -n "$git_ahead" ]] && scm_info+=" ${SCM_PROMPT_AHEAD}${git_ahead_count}"
-
-    [[ -n "${scm_info}" ]] && echo "${scm_info}|${color}"
+    echo -n "$(__color - G)${SCM_GIT_CHAR}$branch$status$(__color)"
 }
 
 function __get_segment_with_color {
