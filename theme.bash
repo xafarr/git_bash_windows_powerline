@@ -6,11 +6,7 @@
 # Git code based on https://github.com/joeytwiddle/git-aware-prompt/blob/master/prompt.sh
 # More info about color codes in https://en.wikipedia.org/wiki/ANSI_escape_code
 
-#PROMPT_CHAR=${POWERLINE_PROMPT_CHAR:=""}
-POWERLINE_PROMPT_CHAR=""
 PROMPT_CHAR=" "
-POWERLINE_LEFT_SEPARATOR=" "
-#POWERLINE_PROMPT="last_status user_info cwd scm"
 POWERLINE_PROMPT="os_symbol cwd scm"
 
 USER_INFO_SSH_CHAR=" "
@@ -18,27 +14,9 @@ USER_INFO_PROMPT_COLOR="- C"
 OS_SYMBOL_PROMPT_COLOR="- C"
 
 SCM_GIT_CHAR=" "
-SCM_PROMPT_CLEAN=""
-SCM_PROMPT_DIRTY="✸"
-SCM_PROMPT_AHEAD="↑"
-SCM_PROMPT_BEHIND="↓"
-SCM_PROMPT_CLEAN_COLOR="- G"
-SCM_PROMPT_DIRTY_COLOR="- R"
-SCM_PROMPT_AHEAD_COLOR=""
-SCM_PROMPT_BEHIND_COLOR=""
-SCM_PROMPT_STAGED_COLOR="- Y"
-SCM_PROMPT_UNSTAGED_COLOR="- R"
-SCM_PROMPT_COLOR=${SCM_PROMPT_CLEAN_COLOR}
+SCM_BRANCH_COLOR="- G"
 
 CWD_PROMPT_COLOR="- B"
-
-STATUS_PROMPT_COLOR="Bl R B"
-STATUS_PROMPT_ERROR="✘"
-STATUS_PROMPT_ERROR_COLOR="Bl R B"
-STATUS_PROMPT_ROOT="⚡"
-STATUS_PROMPT_ROOT_COLOR="Bl Y B"
-STATUS_PROMPT_JOBS="●"
-STATUS_PROMPT_JOBS_COLOR="Bl Y B"
 
 function __color {
     local bg
@@ -174,7 +152,7 @@ function __powerline_scm_prompt {
     # Add state symbols to branch name
     [[ ${#state_symbols[@]} -gt 0 ]] && branch="${branch} $(__color - Y)${state_symbols[*]}"
 
-    echo -n "$(__color - G)${SCM_GIT_CHAR}$branch$status$(__color)"
+    echo -n "${SCM_GIT_CHAR}$branch$status|${SCM_BRANCH_COLOR}"
 }
 
 function __get_segment_with_color {
