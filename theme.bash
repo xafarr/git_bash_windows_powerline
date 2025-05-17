@@ -10,6 +10,7 @@ PROMPT_CHAR=" "
 POWERLINE_PROMPT="os_symbol cwd scm"
 
 USER_INFO_SSH_CHAR=" "
+DOT_CHAR="·"
 USER_INFO_PROMPT_COLOR="- C"
 OS_SYMBOL_PROMPT_COLOR="- C"
 
@@ -192,13 +193,14 @@ function __dot_separator {
     right_plain=$(__strip_ansi "${2}")
 
     # Calculate lengths
-    local cols=$(tput cols)
+    local cols
+    cols=$(tput cols)
     local gap=$((cols - ${#left_plain} - ${#right_plain} - 2))
 
     # Create dot separator
     local dots=""
     if ((gap > 0)); then
-        dots=$(printf "%${gap}s" | tr ' ' '.')
+        dots=$(printf "%${gap}s" | sed "s/ /$DOT_CHAR/g")
         dots=" \[\e[38;2;146;146;146m\]\[\e[2m\]$dots\[\e[22m\]$(__color)"
     fi
     echo -n "$dots"
@@ -218,8 +220,9 @@ function __powerline_prompt_command {
     RIGHT_PROMPT+="$(__get_segment_with_color "$right_prompt_info")"
 
     ## left prompt ##
+    local info
     for segment in $POWERLINE_PROMPT; do
-        local info="$(__powerline_${segment}_prompt)"
+        info="$(__powerline_"${segment}"_prompt)"
         [[ -n "${info}" ]] && __powerline_left_segment "${info}"
     done
 
@@ -283,9 +286,10 @@ __color_matrix() {
 
     # Print modificators
     echo -ne "       "
+    local mod
     for fgi in "${!colors[@]}"; do
         for modi in "${!mods[@]}"; do
-            local mod=$(printf "%1s" "${mods[$modi]}")
+            mod=$(printf "%1s" "${mods[$modi]}")
             buffer="${buffer}$mod "
         done
         # echo -ne "\e[m "
@@ -295,16 +299,20 @@ __color_matrix() {
     buffer=""
 
     # Print color matrix
+    local bgn
+    local bg
+    local fgn
+    local fg
     for bgi in "${!colors[@]}"; do
-        local bgn=$((bgi + 40))
-        local bg=$(printf "%6s" "${colors[$bgi]}")
+        bgn=$((bgi + 40))
+        bg=$(printf "%6s" "${colors[$bgi]}")
 
         #print color names
         echo -ne "\e[m$bg "
 
         for fgi in "${!colors[@]}"; do
-            local fgn=$((fgi + 30))
-            local fg=$(printf "%7s" "${colors[$fgi]}")
+            fgn=$((fgi + 30))
+            fg=$(printf "%7s" "${colors[$fgi]}")
 
             for modi in "${!mods[@]}"; do
                 buffer="${buffer}\e[${modi};${bgn};${fgn}m "
