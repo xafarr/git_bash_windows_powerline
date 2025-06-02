@@ -125,9 +125,9 @@ function __powerline_scm_prompt {
             ;;
         esac
     done <<<"$status_lines"
-    # Stash count from refs (faster than git stash list)
+
     [[ -f "$(git rev-parse --git-dir)/refs/stash" ]] &&
-        stashed=$(($(wc -l <"$(git rev-parse --git-dir)/refs/stash" 2>/dev/null)))
+        stashed=$(git rev-list --walk-reflogs --ignore-missing --count refs/stash)
 
     # Special state detection
     local state_symbols=()
