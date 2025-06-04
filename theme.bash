@@ -58,7 +58,7 @@ function __color {
 }
 
 function __powerline_os_symbol_prompt {
-    local windows="󰖳 "
+    local windows=" "
     local color=${OS_SYMBOL_PROMPT_COLOR}
     echo "$windows|${color}"
 }
@@ -148,7 +148,7 @@ function __powerline_scm_prompt {
     [[ ${counts[conflicts]} -gt 0 ]] && status+=" $(__color - M)✗${counts[conflicts]}"
     [[ $ahead -gt 0 ]] && status+=" $(__color - G)⇡$ahead"
     [[ $behind -gt 0 ]] && status+=" $(__color - G)⇣$behind"
-    [[ $stashed -gt 0 ]] && status+=" $(__color - G)⚑$stashed"
+    [[ $stashed -gt 0 ]] && status+=" $(__color - G)󰀼 $stashed"
 
     # Add state symbols to branch name
     [[ ${#state_symbols[@]} -gt 0 ]] && branch="${branch} $(__color - Y)${state_symbols[*]}"
