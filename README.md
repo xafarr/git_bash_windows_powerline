@@ -7,8 +7,8 @@ Light & simple theme for Git bash for windows
 I recommend the following:
 
 ```bash
-mkdir -p ~/.config
-git clone https://github.com/diesire/git_bash_windows_powerline.git ~/.config/bash
+mkdir -p $HOME/.config
+git clone https://github.com/xafarr/git_bash_windows_powerline.git $HOME/.config/bash
 ```
 
 then add the following to your .bashrc:
