@@ -99,6 +99,9 @@ function __powerline_scm_prompt {
         if [[ ${line:0:2} == "##" ]]; then
             branch="${line#* }"
             branch="${branch%%...*}"
+            if [[ ${branch} == *"HEAD (no branch)"* ]]; then
+                branch="HEAD ($(git rev-parse --short HEAD))"
+            fi
             tracking_branch="${line#*...}"
             tracking_branch="${tracking_branch%% *}"
             # try to match ahead N
